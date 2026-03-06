@@ -163,6 +163,15 @@ describe("GovernanceAuditor", () => {
   });
 
   it("commit-format rule — valid conventional commit → passed: true", async () => {
+    // Create a temp git repo with a conventional commit
+    const gitDir = createTempDir();
+    const { execSync } = require("child_process");
+    execSync("git init", { cwd: gitDir, stdio: "ignore" });
+    execSync("git config user.email 'test@test.com'", { cwd: gitDir, stdio: "ignore" });
+    execSync("git config user.name 'Test'", { cwd: gitDir, stdio: "ignore" });
+    fs.writeFileSync(path.join(gitDir, "file.txt"), "hello");
+    execSync("git add . && git commit -m 'feat: add initial file'", { cwd: gitDir, stdio: "ignore" });
+
     const rule = makeRule({
       id: "conventional",
       check: "commit-format",
@@ -172,10 +181,11 @@ describe("GovernanceAuditor", () => {
     const prompt = mockPromptGenerator();
     const auditor = new GovernanceAuditor(prompt);
 
-    // Use cforge-dev repo which has conventional commits
-    const result = await auditor.execute({ workingDir: "/home/ermin/workspace/cforge-dev", contracts });
+    const result = await auditor.execute({ workingDir: gitDir, contracts });
 
     expect(result.results[0].passed).toBe(true);
+
+    fs.rmSync(gitDir, { recursive: true, force: true });
   });
 
   it("commit-format rule — invalid commit message → passed: false", async () => {
