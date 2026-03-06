@@ -1,3 +1,7 @@
+jest.mock("child_process", () => ({
+  execSync: jest.fn(),
+}));
+
 import { AutoImplement } from "../../src/application/use-cases/AutoImplement";
 import { GitHubClient } from "../../src/domain/interfaces/GitHubClient";
 import { PromptGenerator } from "../../src/domain/interfaces/PromptGenerator";

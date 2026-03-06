@@ -1,3 +1,4 @@
+import { execSync } from "child_process";
 import { GitHubClient } from "../../domain/interfaces/GitHubClient";
 import { PromptGenerator } from "../../domain/interfaces/PromptGenerator";
 import { CodeRunner } from "../../domain/interfaces/CodeRunner";
@@ -55,6 +56,9 @@ export class AutoImplement {
     const basePrompt = await this.promptGen.generateImplementationPrompt(issue, input.context);
     const fullPrompt = `${basePrompt}
 
+IMPORTANT — before making any changes:
+1. Run: git checkout ${branch}
+
 After implementing:
 1. Run: npm test
 2. If tests pass: git add -A && git commit -m 'feat: ${issue.title}'
@@ -101,7 +105,8 @@ Fix the failing tests and ensure all tests pass before committing.`;
       return this.buildResult(issue, branch, runResult, false, false, retried);
     }
 
-    // Step 7: Open PR
+    // Step 7: Push branch and open PR
+    execSync(`git push origin ${branch}`, { cwd: workingDir, encoding: "utf-8", stdio: "pipe" });
     const prBody = this.buildPRBody(issue, runResult.output, runResult.cost, runResult.turns);
     const pr = await this.github.createPullRequest(
       `feat: ${issue.title}`,
