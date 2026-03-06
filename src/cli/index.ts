@@ -6,6 +6,7 @@ import { implementCommand } from "./commands/implement";
 import { verifyCommand } from "./commands/verify";
 import { releaseCommand } from "./commands/release";
 import { chatCommand } from "./commands/chat";
+import { auditCommand } from "./commands/audit";
 
 const USAGE = `cforge-dev — AI-native SDLC orchestrator
 
@@ -15,6 +16,7 @@ Usage:
   cforge-dev verify <issue-number>        Verify issue readiness for merge
   cforge-dev release <milestone-id> <ver> Create a release from a milestone
   cforge-dev chat                         Interactive planning session
+  cforge-dev audit                        Run governance audit against contracts
 `;
 
 async function main(): Promise<void> {
@@ -40,6 +42,9 @@ async function main(): Promise<void> {
       break;
     case "chat":
       await chatCommand();
+      break;
+    case "audit":
+      await auditCommand();
       break;
     default:
       console.error(`Unknown command: ${command}\n`);
