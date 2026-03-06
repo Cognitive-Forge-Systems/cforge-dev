@@ -5,18 +5,22 @@ import { ClaudeCodeRunner } from "../../infrastructure/claude/ClaudeCodeRunner";
 import { ImplementIssue } from "../../application/use-cases/ImplementIssue";
 import { AutoImplement } from "../../application/use-cases/AutoImplement";
 import { loadContext } from "../utils/loadContext";
+import { validatePresence, validateNumericIssueNumber, USAGE_IMPLEMENT } from "../validation";
 
 export async function implementCommand(issueNumberStr: string, flags: string[] = []): Promise<void> {
-  if (!issueNumberStr) {
-    console.error("Usage: cforge-dev implement <issue-number> [--auto]");
+  const presenceErr = validatePresence(issueNumberStr, USAGE_IMPLEMENT);
+  if (presenceErr) {
+    console.error(presenceErr);
+    process.exit(1);
+  }
+
+  const numericErr = validateNumericIssueNumber(issueNumberStr);
+  if (numericErr) {
+    console.error(numericErr);
     process.exit(1);
   }
 
   const issueNumber = parseInt(issueNumberStr, 10);
-  if (isNaN(issueNumber)) {
-    console.error("Issue number must be a valid integer");
-    process.exit(1);
-  }
 
   const isAuto = flags.includes("--auto");
 

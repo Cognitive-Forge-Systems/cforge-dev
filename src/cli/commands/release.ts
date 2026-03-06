@@ -1,10 +1,12 @@
 import { OctokitGitHubClient } from "../../infrastructure/github/OctokitGitHubClient";
 import { CreateRelease } from "../../application/use-cases/CreateRelease";
 import { loadContext } from "../utils/loadContext";
+import { validatePresence, USAGE_RELEASE } from "../validation";
 
 export async function releaseCommand(milestoneIdStr: string, version: string): Promise<void> {
-  if (!milestoneIdStr || !version) {
-    console.error("Usage: cforge-dev release <milestone-id> <version>");
+  const presenceErr = validatePresence(milestoneIdStr, USAGE_RELEASE) || validatePresence(version, USAGE_RELEASE);
+  if (presenceErr) {
+    console.error(presenceErr);
     process.exit(1);
   }
 

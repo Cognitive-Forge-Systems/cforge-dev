@@ -4,6 +4,7 @@ import { OctokitGitHubClient } from "../../infrastructure/github/OctokitGitHubCl
 import { CForgePromptGenerator } from "../../infrastructure/cforge/CForgePromptGenerator";
 import { PlanSprint } from "../../application/use-cases/PlanSprint";
 import { loadContext } from "../utils/loadContext";
+import { validatePresence, USAGE_PLAN } from "../validation";
 
 function prompt(question: string): Promise<string> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -16,8 +17,9 @@ function prompt(question: string): Promise<string> {
 }
 
 export async function planCommand(prdFile: string): Promise<void> {
-  if (!prdFile) {
-    console.error("Usage: cforge-dev plan <prd-file>");
+  const presenceErr = validatePresence(prdFile, USAGE_PLAN);
+  if (presenceErr) {
+    console.error(presenceErr);
     process.exit(1);
   }
 
