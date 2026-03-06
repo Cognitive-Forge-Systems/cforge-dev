@@ -5,6 +5,7 @@ import { planCommand } from "./commands/plan";
 import { implementCommand } from "./commands/implement";
 import { verifyCommand } from "./commands/verify";
 import { releaseCommand } from "./commands/release";
+import { chatCommand } from "./commands/chat";
 
 const USAGE = `cforge-dev — AI-native SDLC orchestrator
 
@@ -13,6 +14,7 @@ Usage:
   cforge-dev implement <issue-number>     Generate Claude Code prompt for an issue
   cforge-dev verify <issue-number>        Verify issue readiness for merge
   cforge-dev release <milestone-id> <ver> Create a release from a milestone
+  cforge-dev chat                         Interactive planning session
 `;
 
 async function main(): Promise<void> {
@@ -35,6 +37,9 @@ async function main(): Promise<void> {
       break;
     case "release":
       await releaseCommand(args[0], args[1]);
+      break;
+    case "chat":
+      await chatCommand();
       break;
     default:
       console.error(`Unknown command: ${command}\n`);
