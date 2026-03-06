@@ -21,10 +21,24 @@
 - Conventional commits
 
 ## Existing Modules
-_none yet — updated after each release_
+- SDLCDoctrine — pure domain validation (branch names, PR readiness, release gates)
+- OctokitGitHubClient — GitHub API adapter (milestones, issues, branches, PRs, releases)
+- PlanSprint — PRD → milestone + ordered issues (architecture first)
+- ImplementIssue — issue → branch + contextualized Claude Code prompt
+- VerifyIssue — PR readiness check + critique pass
+- CreateRelease — changelog generation + GitHub release
+- CForgePromptGenerator — OpenRouter-backed prompt generation
+- ChatSession — repo-aware planning session with history
+- RepoStateLoader — parallel GitHub state fetcher
 
 ## Decision Log
-_major architectural decisions recorded here as the project grows_
+- v0.1.0: Clean/Onion Architecture chosen — domain never imports infrastructure
+- v0.1.0: @octokit/rest for GitHub API — clean interface abstraction
+- v0.1.0: gh auth token fallback — no GITHUB_TOKEN required locally
+- v0.2.0: dotenv for local env — .env never committed
+- v0.2.0: RepoState injected into chat system prompt — LLM always has live repo context
+- v0.3.0: GitHub Actions CI on all PRs — cforge-dev verify reads real check results
+- v0.3.0: Branch protection on main — SDLC doctrine enforced at GitHub level
 
 ## Open Questions
 _none yet_
