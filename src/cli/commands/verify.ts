@@ -2,18 +2,22 @@ import { OctokitGitHubClient } from "../../infrastructure/github/OctokitGitHubCl
 import { CForgePromptGenerator } from "../../infrastructure/cforge/CForgePromptGenerator";
 import { VerifyIssue } from "../../application/use-cases/VerifyIssue";
 import { loadContext } from "../utils/loadContext";
+import { validatePresence, validateNumericIssueNumber, USAGE_VERIFY } from "../validation";
 
 export async function verifyCommand(issueNumberStr: string): Promise<void> {
-  if (!issueNumberStr) {
-    console.error("Usage: cforge-dev verify <issue-number>");
+  const presenceErr = validatePresence(issueNumberStr, USAGE_VERIFY);
+  if (presenceErr) {
+    console.error(presenceErr);
+    process.exit(1);
+  }
+
+  const numericErr = validateNumericIssueNumber(issueNumberStr);
+  if (numericErr) {
+    console.error(numericErr);
     process.exit(1);
   }
 
   const issueNumber = parseInt(issueNumberStr, 10);
-  if (isNaN(issueNumber)) {
-    console.error("Issue number must be a valid integer");
-    process.exit(1);
-  }
 
   const context = loadContext();
   const gh = new OctokitGitHubClient(context.repoOwner, context.repoName);

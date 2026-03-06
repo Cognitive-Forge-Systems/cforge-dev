@@ -13,6 +13,7 @@ const USAGE = `cforge-dev — AI-native SDLC orchestrator
 Usage:
   cforge-dev plan <prd-file>              Plan a sprint from a PRD file
   cforge-dev implement <issue-number>     Generate Claude Code prompt for an issue
+  cforge-dev implement <n> --auto        Autonomous: Claude Code implements + opens PR
   cforge-dev verify <issue-number>        Verify issue readiness for merge
   cforge-dev release <milestone-id> <ver> Create a release from a milestone
   cforge-dev chat                         Interactive planning session
@@ -32,7 +33,7 @@ async function main(): Promise<void> {
       await planCommand(args[0]);
       break;
     case "implement":
-      await implementCommand(args[0]);
+      await implementCommand(args[0], args.slice(1));
       break;
     case "verify":
       await verifyCommand(args[0]);
