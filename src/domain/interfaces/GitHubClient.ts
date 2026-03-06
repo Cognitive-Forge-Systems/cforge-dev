@@ -1,10 +1,10 @@
-import { Issue } from "../models/Issue";
+import { Issue, IssueType } from "../models/Issue";
 import { Milestone } from "../models/Milestone";
 import { PullRequest } from "../models/PullRequest";
 
 export interface GitHubClient {
   createMilestone(title: string, description: string): Promise<Milestone>;
-  createIssue(title: string, body: string, type: string, milestoneId: number): Promise<Issue>;
+  createIssue(title: string, body: string, type: IssueType, milestoneId: number): Promise<Issue>;
   getIssue(number: number): Promise<Issue>;
   listIssues(milestoneId?: number): Promise<Issue[]>;
   createBranch(name: string, fromBranch: string): Promise<void>;

@@ -5,7 +5,7 @@ const BRANCH_PREFIX_MAP: Partial<Record<IssueType, string>> = {
   [IssueType.FEATURE]: "feat/",
   [IssueType.BUG]: "fix/",
   [IssueType.TASK]: "chore/",
-  [IssueType.ARCHITECTURE]: "chore/",
+  [IssueType.ARCHITECTURE]: "feat/",
 };
 
 export class SDLCDoctrine {

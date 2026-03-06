@@ -14,7 +14,13 @@
     "start": "node dist/cli/index.js",
     "lint": "tsc --noEmit"
   },
-  "keywords": ["ai", "sdlc", "cli", "orchestrator", "github"],
+  "keywords": [
+    "ai",
+    "sdlc",
+    "cli",
+    "orchestrator",
+    "github"
+  ],
   "author": "Ermin Muratovic",
   "license": "GPL-3.0-only",
   "devDependencies": {
@@ -26,6 +32,7 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
-    "@octokit/rest": "^21.1.1"
+    "@octokit/rest": "^21.1.1",
+    "dotenv": "^17.3.1"
   }
 }
