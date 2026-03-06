@@ -148,6 +148,36 @@ describe("OctokitGitHubClient", () => {
     );
   });
 
+  it("should exclude pull requests from listIssues results", async () => {
+    mockOctokit.issues.listForRepo.mockResolvedValueOnce({
+      data: [
+        {
+          id: 1,
+          number: 1,
+          title: "Real Issue",
+          body: "An actual issue",
+          labels: [{ name: "bug" }],
+          milestone: null,
+        },
+        {
+          id: 2,
+          number: 2,
+          title: "A Pull Request",
+          body: "A PR masquerading as issue",
+          labels: [],
+          milestone: null,
+          pull_request: { url: "https://api.github.com/repos/owner/repo/pulls/2" },
+        },
+      ],
+    });
+
+    const result = await client.listIssues();
+
+    expect(result).toHaveLength(1);
+    expect(result[0].number).toBe(1);
+    expect(result[0].title).toBe("Real Issue");
+  });
+
   it("should create branch by fetching SHA first then creating ref", async () => {
     mockOctokit.git.getRef.mockResolvedValueOnce({
       data: { object: { sha: "abc123" } },

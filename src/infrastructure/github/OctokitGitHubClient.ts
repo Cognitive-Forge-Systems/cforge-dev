@@ -76,7 +76,8 @@ export class OctokitGitHubClient implements GitHubClient {
       milestone: milestoneId as unknown as string,
       state: "all",
     });
-    return data.map((d) => this.mapIssue(d));
+    const filteredIssues = data.filter((item) => !item.pull_request);
+    return filteredIssues.map((d) => this.mapIssue(d));
   }
 
   async createBranch(name: string, fromBranch: string): Promise<void> {
