@@ -14,7 +14,7 @@ export async function implementCommand(issueNumberStr: string, flags: string[] =
 
   const issueNumber = parseInt(issueNumberStr, 10);
   if (isNaN(issueNumber)) {
-    console.error("Issue number must be a valid integer");
+    console.error("Issue number must be a number");
     process.exit(1);
   }
 

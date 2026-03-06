@@ -11,7 +11,7 @@ export async function verifyCommand(issueNumberStr: string): Promise<void> {
 
   const issueNumber = parseInt(issueNumberStr, 10);
   if (isNaN(issueNumber)) {
-    console.error("Issue number must be a valid integer");
+    console.error("Issue number must be a number");
     process.exit(1);
   }
 
