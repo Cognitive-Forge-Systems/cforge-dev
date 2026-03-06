@@ -36,6 +36,7 @@ function makePR(overrides: Partial<PullRequest> = {}): PullRequest {
     base: "main",
     status: "open",
     checksPassing: true,
+    body: undefined,
     ...overrides,
   };
 }
@@ -197,5 +198,94 @@ describe("VerifyIssue", () => {
     const result = await verify.execute({ issueNumber: 42, context: mockContext });
 
     expect(result.pr?.number).toBe(10);
+  });
+
+  it("should match ARCHITECTURE issue PR by feat/architecture-<number> branch", async () => {
+    const issue = makeIssue({ number: 2, type: IssueType.ARCHITECTURE, title: "Setup architecture", branch: undefined });
+    const archPR = makePR({ branch: "feat/architecture-2", number: 14 });
+    const unrelatedPR = makePR({ branch: "feat/other-thing", number: 99 });
+    const gh = mockGitHubClient(issue, [unrelatedPR, archPR]);
+    const prompt = mockPromptGenerator();
+    const verify = new VerifyIssue(gh, prompt);
+
+    const result = await verify.execute({ issueNumber: 2, context: mockContext });
+
+    expect(result.pr?.number).toBe(14);
+  });
+
+  it("should match FEATURE issue PR by computed slug branch when issue.branch is undefined", async () => {
+    const issue = makeIssue({ number: 5, type: IssueType.FEATURE, title: "Add login", branch: undefined });
+    const matchingPR = makePR({ branch: "feat/add-login", number: 20 });
+    const gh = mockGitHubClient(issue, [matchingPR]);
+    const prompt = mockPromptGenerator();
+    const verify = new VerifyIssue(gh, prompt);
+
+    const result = await verify.execute({ issueNumber: 5, context: mockContext });
+
+    expect(result.pr?.number).toBe(20);
+  });
+
+  it("should match BUG issue PR by fix/ prefixed branch", async () => {
+    const issue = makeIssue({ number: 7, type: IssueType.BUG, title: "Fix crash on login", branch: undefined });
+    const matchingPR = makePR({ branch: "fix/fix-crash-on-login", number: 21 });
+    const unrelatedPR = makePR({ branch: "feat/other", number: 99 });
+    const gh = mockGitHubClient(issue, [unrelatedPR, matchingPR]);
+    const prompt = mockPromptGenerator();
+    const verify = new VerifyIssue(gh, prompt);
+
+    const result = await verify.execute({ issueNumber: 7, context: mockContext });
+
+    expect(result.pr?.number).toBe(21);
+  });
+
+  it("should match TASK issue PR by chore/ prefixed branch", async () => {
+    const issue = makeIssue({ number: 8, type: IssueType.TASK, title: "Update dependencies", branch: undefined });
+    const matchingPR = makePR({ branch: "chore/update-dependencies", number: 22 });
+    const unrelatedPR = makePR({ branch: "feat/other", number: 99 });
+    const gh = mockGitHubClient(issue, [unrelatedPR, matchingPR]);
+    const prompt = mockPromptGenerator();
+    const verify = new VerifyIssue(gh, prompt);
+
+    const result = await verify.execute({ issueNumber: 8, context: mockContext });
+
+    expect(result.pr?.number).toBe(22);
+  });
+
+  it("should use issue number fallback to match PR when branch contains the issue number", async () => {
+    const issue = makeIssue({ number: 42, type: IssueType.FEATURE, title: "Some feature", branch: undefined });
+    const matchingPR = makePR({ branch: "feat/some-unrelated-42", number: 30 });
+    const gh = mockGitHubClient(issue, [matchingPR]);
+    const prompt = mockPromptGenerator();
+    const verify = new VerifyIssue(gh, prompt);
+
+    const result = await verify.execute({ issueNumber: 42, context: mockContext });
+
+    expect(result.pr?.number).toBe(30);
+  });
+
+  it("should match PR by issue number in PR body (Closes #<number>)", async () => {
+    const issue = makeIssue({ number: 42, type: IssueType.FEATURE, title: "Unrelated title xyz", branch: undefined });
+    const matchingPR = makePR({ branch: "feat/completely-different-branch", number: 31, body: "Closes #42" });
+    const gh = mockGitHubClient(issue, [matchingPR]);
+    const prompt = mockPromptGenerator();
+    const verify = new VerifyIssue(gh, prompt);
+
+    const result = await verify.execute({ issueNumber: 42, context: mockContext });
+
+    expect(result.pr?.number).toBe(31);
+  });
+
+  it("should return null pr when no PR matches any strategy", async () => {
+    const issue = makeIssue({ number: 99, type: IssueType.FEATURE, title: "Unmatched feature", branch: undefined });
+    const unrelatedPR = makePR({ branch: "fix/something-else", number: 50, body: "No issue reference" });
+    const gh = mockGitHubClient(issue, [unrelatedPR]);
+    const prompt = mockPromptGenerator();
+    const verify = new VerifyIssue(gh, prompt);
+
+    const result = await verify.execute({ issueNumber: 99, context: mockContext });
+
+    expect(result.pr).toBeNull();
+    expect(result.ready).toBe(false);
+    expect(result.blockers).toContain("No open PR found for this issue");
   });
 });
