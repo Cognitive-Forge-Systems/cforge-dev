@@ -5,4 +5,5 @@ export interface PullRequest {
   base: string;
   status: "open" | "closed" | "merged";
   checksPassing: boolean;
+  body?: string;
 }

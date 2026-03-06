@@ -190,6 +190,7 @@ export class OctokitGitHubClient implements GitHubClient {
       base: base.ref,
       status,
       checksPassing: mergeableState === "clean",
+      body: (data.body as string) ?? undefined,
     };
   }
 }
