@@ -1,0 +1,31 @@
+{
+  "name": "cforge-dev",
+  "version": "0.1.0",
+  "description": "AI-native SDLC orchestrator — enforces architectural discipline when building software with AI",
+  "main": "dist/cli/index.js",
+  "bin": {
+    "cforge-dev": "./dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/cli/index.ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "start": "node dist/cli/index.js",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": ["ai", "sdlc", "cli", "orchestrator", "github"],
+  "author": "Ermin Muratovic",
+  "license": "GPL-3.0-only",
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.13.10",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "@octokit/rest": "^21.1.1"
+  }
+}
