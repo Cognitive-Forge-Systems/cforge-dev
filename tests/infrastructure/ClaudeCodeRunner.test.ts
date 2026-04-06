@@ -55,6 +55,25 @@ function mockSpawnFailure(code: number, stderr: string) {
   (execSync as jest.Mock).mockReturnValue("/usr/bin/claude");
 }
 
+function mockSpawnExitWithJson(code: number, jsonResponse: string, stderr = "") {
+  (spawn as jest.Mock).mockImplementation(() => {
+    const child = Object.assign(new EventEmitter(), {
+      stdout: new PassThrough(),
+      stderr: new PassThrough(),
+      stdin: new PassThrough(),
+    });
+    process.nextTick(() => {
+      child.stdout.push(jsonResponse);
+      child.stdout.push(null);
+      if (stderr) child.stderr.push(stderr);
+      child.stderr.push(null);
+      child.emit("close", code);
+    });
+    return child;
+  });
+  (execSync as jest.Mock).mockReturnValue("/usr/bin/claude");
+}
+
 const successJson = JSON.stringify({
   type: "result",
   subtype: "success",
@@ -200,7 +219,31 @@ describe("ClaudeCodeRunner", () => {
     );
   });
 
-  it("should throw on non-zero exit code", async () => {
+  // ── Budget exhaustion handling ─────────────────────────────────
+
+  it("should return RunResult on non-zero exit when stdout has valid JSON (budget exhaustion)", async () => {
+    const budgetJson = JSON.stringify({
+      type: "result",
+      subtype: "error_max_budget",
+      is_error: true,
+      result: "Hit max budget of $5.00",
+      total_cost_usd: 5.0,
+      num_turns: 12,
+      stop_reason: "max_budget_reached",
+    });
+    mockSpawnExitWithJson(1, budgetJson);
+
+    const runner = new ClaudeCodeRunner();
+    const result = await runner.run("prompt", "/tmp/test", {});
+
+    expect(result.success).toBe(false);
+    expect(result.stopReason).toBe("max_budget_reached");
+    expect(result.cost).toBe(5.0);
+    expect(result.turns).toBe(12);
+    expect(result.output).toContain("Hit max budget");
+  });
+
+  it("should still throw on non-zero exit when stdout is not valid JSON", async () => {
     mockSpawnFailure(1, "something went wrong");
     const runner = new ClaudeCodeRunner();
 

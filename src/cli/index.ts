@@ -9,22 +9,23 @@ import { chatCommand } from "./commands/chat";
 import { auditCommand } from "./commands/audit";
 import { getVersion } from "./utils/getVersion";
 
-const USAGE = `cforge-dev — AI-native SDLC orchestrator
+export const USAGE = `cforge-dev — AI-native SDLC orchestrator
 
 Usage:
   cforge-dev plan <prd-file>              Plan a sprint from a PRD file
   cforge-dev implement <issue-number>     Generate Claude Code prompt for an issue
-  cforge-dev implement <n> --auto        Autonomous: Claude Code implements + opens PR
+  cforge-dev implement <n> --auto         Autonomous: Claude Code implements + opens PR
+  cforge-dev implement <n> --auto --max-budget 10   Set max USD budget per session
   cforge-dev verify <issue-number>        Verify issue readiness for merge
   cforge-dev release <milestone-id> <ver> Create a release from a milestone
   cforge-dev chat                         Interactive planning session
   cforge-dev audit                        Run governance audit against contracts
 `;
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const [command, ...args] = process.argv.slice(2);
 
-  if (!command) {
+  if (!command || command === "--help") {
     console.log(USAGE);
     process.exit(0);
   }
@@ -60,7 +61,9 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((err) => {
-  console.error(`Error: ${err.message}`);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(`Error: ${err.message}`);
+    process.exit(1);
+  });
+}

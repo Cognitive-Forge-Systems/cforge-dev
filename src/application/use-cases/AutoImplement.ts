@@ -74,7 +74,7 @@ After implementing:
     });
 
     if (!runResult.success) {
-      return this.buildResult(issue, branch, runResult, false, false, false);
+      return this.buildResult(issue, branch, runResult, false, false, false, runResult.stopReason);
     }
 
     // Step 5: Run tests
@@ -128,9 +128,17 @@ Fix the failing tests and ensure all tests pass before committing.`;
     success: boolean,
     testsPassed: boolean,
     retried: boolean,
+    stopReason?: string,
   ): AutoImplementResult {
     const manualStepsRequired: string[] = [];
+    let error: string | undefined;
+
     if (!success) {
+      if (stopReason === "max_budget_reached") {
+        error = `Budget limit reached ($${runResult.cost.toFixed(2)} spent, ${runResult.turns} turns) — increase with --max-budget or CFORGE_MAX_BUDGET`;
+      } else {
+        error = "Tests failed after implementation";
+      }
       manualStepsRequired.push(
         `cd to branch: git checkout ${branch}`,
         "Review test output: npm test",
@@ -147,8 +155,9 @@ Fix the failing tests and ensure all tests pass before committing.`;
       cost: runResult.cost,
       turns: runResult.turns,
       claudeOutput: runResult.output,
+      stopReason,
       retried,
-      error: success ? undefined : "Tests failed after implementation",
+      error,
       manualStepsRequired,
     };
   }

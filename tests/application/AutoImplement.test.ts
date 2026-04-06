@@ -126,6 +126,29 @@ describe("AutoImplement", () => {
     expect(gh.createPullRequest).not.toHaveBeenCalled();
   });
 
+  it("budget exhaustion → error message mentions --max-budget", async () => {
+    const issue = makeIssue();
+    const gh = mockGitHubClient(issue);
+    const prompt = mockPromptGenerator();
+    const runner = mockCodeRunner(makeRunResult({
+      success: false,
+      output: "Hit max budget",
+      cost: 5.0,
+      turns: 12,
+      stopReason: "max_budget_reached",
+    }));
+    const testRunner = mockTestRunner(false);
+    const auto = new AutoImplement(gh, prompt, runner, testRunner);
+
+    const result = await auto.execute({ issueNumber: 42, context: mockContext });
+
+    expect(result.success).toBe(false);
+    expect(result.stopReason).toBe("max_budget_reached");
+    expect(result.error).toContain("Budget limit reached");
+    expect(result.error).toContain("--max-budget");
+    expect(result.error).toContain("$5.00");
+  });
+
   it("tests fail first attempt → retries with error context", async () => {
     const issue = makeIssue();
     const gh = mockGitHubClient(issue);
