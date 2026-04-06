@@ -2,8 +2,14 @@ import * as path from "path";
 import { ContractLoader } from "../../infrastructure/filesystem/ContractLoader";
 import { CForgePromptGenerator } from "../../infrastructure/cforge/CForgePromptGenerator";
 import { GovernanceAuditor } from "../../application/use-cases/GovernanceAuditor";
+import { USAGE_AUDIT } from "../validation";
 
-export async function auditCommand(): Promise<void> {
+export async function auditCommand(flags: string[] = []): Promise<void> {
+  if (flags.includes("--help")) {
+    console.log(USAGE_AUDIT);
+    process.exit(0);
+  }
+
   const workingDir = process.cwd();
   const contractsDir = path.join(workingDir, "contracts");
 

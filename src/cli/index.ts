@@ -30,6 +30,11 @@ export async function main(): Promise<void> {
     process.exit(0);
   }
 
+  if (command === "--help" || command === "-h") {
+    console.log(USAGE);
+    process.exit(0);
+  }
+
   if (command === "--version" || command === "-v") {
     console.log(getVersion());
     process.exit(0);
@@ -52,7 +57,7 @@ export async function main(): Promise<void> {
       await chatCommand();
       break;
     case "audit":
-      await auditCommand();
+      await auditCommand(args);
       break;
     default:
       console.error(`Unknown command: ${command}\n`);

@@ -17,6 +17,11 @@ function prompt(question: string): Promise<string> {
 }
 
 export async function planCommand(prdFile: string): Promise<void> {
+  if (prdFile === "--help") {
+    console.log(USAGE_PLAN);
+    process.exit(0);
+  }
+
   const presenceErr = validatePresence(prdFile, USAGE_PLAN);
   if (presenceErr) {
     console.error(presenceErr);

@@ -5,6 +5,11 @@ import { loadContext } from "../utils/loadContext";
 import { validatePresence, validateNumericIssueNumber, USAGE_VERIFY } from "../validation";
 
 export async function verifyCommand(issueNumberStr: string): Promise<void> {
+  if (issueNumberStr === "--help") {
+    console.log(USAGE_VERIFY);
+    process.exit(0);
+  }
+
   const presenceErr = validatePresence(issueNumberStr, USAGE_VERIFY);
   if (presenceErr) {
     console.error(presenceErr);
