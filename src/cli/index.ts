@@ -7,6 +7,7 @@ import { verifyCommand } from "./commands/verify";
 import { releaseCommand } from "./commands/release";
 import { chatCommand } from "./commands/chat";
 import { auditCommand } from "./commands/audit";
+import { getVersion } from "./utils/getVersion";
 
 const USAGE = `cforge-dev — AI-native SDLC orchestrator
 
@@ -25,6 +26,11 @@ async function main(): Promise<void> {
 
   if (!command) {
     console.log(USAGE);
+    process.exit(0);
+  }
+
+  if (command === "--version" || command === "-v") {
+    console.log(getVersion());
     process.exit(0);
   }
 
