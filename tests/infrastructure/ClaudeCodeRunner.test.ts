@@ -229,7 +229,7 @@ describe("ClaudeCodeRunner", () => {
     );
   });
 
-  it("should pass correct default flags", async () => {
+  it("should pass correct default flags with env-based budget", async () => {
     mockSpawnSuccess(successJson);
     const runner = new ClaudeCodeRunner();
     await runner.run("prompt", "/tmp/work", {});
@@ -241,10 +241,66 @@ describe("ClaudeCodeRunner", () => {
       "--model", "claude-sonnet-4-6",
       "--dangerously-skip-permissions",
       "--allowed-tools", "Bash,Edit,Read,Write,Glob,Grep",
-      "--max-budget-usd", "1",
+      "--max-budget-usd", "5",
       "--output-format", "json",
     ]);
     expect(opts.cwd).toBe("/tmp/work");
+  });
+
+  it("should read CFORGE_MAX_BUDGET from env with default of 5", async () => {
+    mockSpawnSuccess(successJson);
+    const original = process.env.CFORGE_MAX_BUDGET;
+    try {
+      delete process.env.CFORGE_MAX_BUDGET;
+      const runner = new ClaudeCodeRunner();
+      await runner.run("prompt", "/tmp/test", {});
+
+      const args: string[] = (spawn as jest.Mock).mock.calls[0][1];
+      const idx = args.indexOf("--max-budget-usd");
+      expect(args[idx + 1]).toBe("5");
+    } finally {
+      if (original !== undefined) process.env.CFORGE_MAX_BUDGET = original;
+    }
+  });
+
+  it("should use CFORGE_MAX_BUDGET env var when set", async () => {
+    mockSpawnSuccess(successJson);
+    const original = process.env.CFORGE_MAX_BUDGET;
+    try {
+      process.env.CFORGE_MAX_BUDGET = "10";
+      const runner = new ClaudeCodeRunner();
+      await runner.run("prompt", "/tmp/test", {});
+
+      const args: string[] = (spawn as jest.Mock).mock.calls[0][1];
+      const idx = args.indexOf("--max-budget-usd");
+      expect(args[idx + 1]).toBe("10");
+    } finally {
+      if (original !== undefined) {
+        process.env.CFORGE_MAX_BUDGET = original;
+      } else {
+        delete process.env.CFORGE_MAX_BUDGET;
+      }
+    }
+  });
+
+  it("should let RunOptions.maxBudgetUsd override env var", async () => {
+    mockSpawnSuccess(successJson);
+    const original = process.env.CFORGE_MAX_BUDGET;
+    try {
+      process.env.CFORGE_MAX_BUDGET = "10";
+      const runner = new ClaudeCodeRunner();
+      await runner.run("prompt", "/tmp/test", { maxBudgetUsd: 20 });
+
+      const args: string[] = (spawn as jest.Mock).mock.calls[0][1];
+      const idx = args.indexOf("--max-budget-usd");
+      expect(args[idx + 1]).toBe("20");
+    } finally {
+      if (original !== undefined) {
+        process.env.CFORGE_MAX_BUDGET = original;
+      } else {
+        delete process.env.CFORGE_MAX_BUDGET;
+      }
+    }
   });
 
   it("should respect custom model and budget options", async () => {
