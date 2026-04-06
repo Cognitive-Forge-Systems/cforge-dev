@@ -48,7 +48,7 @@ describe("validateNumericIssueNumber", () => {
 
 describe("USAGE constants", () => {
   it("USAGE_IMPLEMENT contains correct format", () => {
-    expect(USAGE_IMPLEMENT).toBe("Usage: cforge-dev implement [issue-number]");
+    expect(USAGE_IMPLEMENT).toBe("Usage: cforge-dev implement [issue-number] [--auto] [--max-budget <usd>]");
   });
 
   it("USAGE_VERIFY contains correct format", () => {
@@ -68,7 +68,7 @@ describe("implement command validation", () => {
   it("fails with usage when no issue number provided", () => {
     const presenceErr = validatePresence(undefined, USAGE_IMPLEMENT);
     expect(presenceErr).not.toBeNull();
-    expect(presenceErr).toBe("Usage: cforge-dev implement [issue-number]");
+    expect(presenceErr).toBe("Usage: cforge-dev implement [issue-number] [--auto] [--max-budget <usd>]");
   });
 
   it("fails with error when non-numeric issue number provided", () => {

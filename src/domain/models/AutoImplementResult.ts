@@ -10,6 +10,7 @@ export interface AutoImplementResult {
   cost: number;
   turns: number;
   claudeOutput: string;
+  stopReason?: string;
   retried: boolean;
   error?: string;
   manualStepsRequired: string[];

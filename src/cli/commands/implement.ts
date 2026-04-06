@@ -8,6 +8,11 @@ import { loadContext } from "../utils/loadContext";
 import { validatePresence, validateNumericIssueNumber, USAGE_IMPLEMENT } from "../validation";
 
 export async function implementCommand(issueNumberStr: string, flags: string[] = []): Promise<void> {
+  if (issueNumberStr === "--help" || flags.includes("--help")) {
+    console.log(USAGE_IMPLEMENT);
+    process.exit(0);
+  }
+
   const presenceErr = validatePresence(issueNumberStr, USAGE_IMPLEMENT);
   if (presenceErr) {
     console.error(presenceErr);
@@ -23,9 +28,10 @@ export async function implementCommand(issueNumberStr: string, flags: string[] =
   const issueNumber = parseInt(issueNumberStr, 10);
 
   const isAuto = flags.includes("--auto");
+  const maxBudget = parseFlagValue(flags, "--max-budget");
 
   if (isAuto) {
-    await runAutoImplement(issueNumber);
+    await runAutoImplement(issueNumber, maxBudget);
   } else {
     await runManualImplement(issueNumber);
   }
@@ -52,7 +58,18 @@ async function runManualImplement(issueNumber: number): Promise<void> {
   });
 }
 
-async function runAutoImplement(issueNumber: number): Promise<void> {
+function parseFlagValue(flags: string[], flag: string): number | undefined {
+  const idx = flags.indexOf(flag);
+  if (idx === -1 || idx + 1 >= flags.length) return undefined;
+  const val = Number(flags[idx + 1]);
+  if (Number.isNaN(val) || val <= 0) {
+    console.error(`Invalid value for ${flag}: ${flags[idx + 1]}`);
+    process.exit(1);
+  }
+  return val;
+}
+
+async function runAutoImplement(issueNumber: number, maxBudgetUsd?: number): Promise<void> {
   const context = loadContext();
   const gh = new OctokitGitHubClient(context.repoOwner, context.repoName);
   const promptGen = new CForgePromptGenerator();
@@ -78,6 +95,7 @@ async function runAutoImplement(issueNumber: number): Promise<void> {
   const result = await auto.execute({
     issueNumber,
     context,
+    maxBudgetUsd,
   });
 
   if (result.success) {

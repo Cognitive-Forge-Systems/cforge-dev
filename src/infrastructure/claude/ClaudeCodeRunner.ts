@@ -38,32 +38,28 @@ export class ClaudeCodeRunner implements CodeRunner {
       "--output-format", "json",
     ];
 
-    const output = await new Promise<string>((resolve, reject) => {
+    const { stdout, stderr, exitCode } = await new Promise<{ stdout: string; stderr: string; exitCode: number | null }>((resolve, reject) => {
       const child = spawn("claude", args, {
         cwd: workingDir,
         stdio: ["pipe", "pipe", "pipe"],
       });
 
-      let stdout = "";
-      let stderr = "";
+      let stdoutBuf = "";
+      let stderrBuf = "";
 
       child.stdout.on("data", (data: Buffer) => {
-        stdout += data.toString();
+        stdoutBuf += data.toString();
       });
 
       child.stderr.on("data", (data: Buffer) => {
-        stderr += data.toString();
+        stderrBuf += data.toString();
       });
 
       child.stdin.write(prompt);
       child.stdin.end();
 
       child.on("close", (code: number | null) => {
-        if (code !== 0) {
-          reject(new Error(`claude exited with code ${code}: ${stderr}`));
-        } else {
-          resolve(stdout);
-        }
+        resolve({ stdout: stdoutBuf, stderr: stderrBuf, exitCode: code });
       });
 
       child.on("error", (err: Error) => {
@@ -71,11 +67,15 @@ export class ClaudeCodeRunner implements CodeRunner {
       });
     });
 
+    // Try to parse JSON from stdout — even on non-zero exit (e.g. budget exhaustion)
     let parsed: ClaudeJsonResponse;
     try {
-      parsed = JSON.parse(output.trim());
+      parsed = JSON.parse(stdout.trim());
     } catch {
-      throw new Error(`Failed to parse claude output: ${output.slice(0, 200)}`);
+      if (exitCode !== 0) {
+        throw new Error(`claude exited with code ${exitCode}: ${stderr}`);
+      }
+      throw new Error(`Failed to parse claude output: ${stdout.slice(0, 200)}`);
     }
 
     return {
