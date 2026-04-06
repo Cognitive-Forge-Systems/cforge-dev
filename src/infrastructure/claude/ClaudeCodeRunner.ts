@@ -1,7 +1,4 @@
-import * as fs from "fs";
-import * as path from "path";
-import * as os from "os";
-import { execSync } from "child_process";
+import { execSync, spawn } from "child_process";
 import { CodeRunner, RunOptions, RunResult } from "../../domain/interfaces/CodeRunner";
 
 const DEFAULT_MODEL = "claude-sonnet-4-6";
@@ -31,52 +28,61 @@ export class ClaudeCodeRunner implements CodeRunner {
       throw new Error("claude CLI not found — install Claude Code first");
     }
 
-    // Write prompt to temp file
-    const tmpFile = path.join(os.tmpdir(), `prompt-${Date.now()}.txt`);
-    fs.writeFileSync(tmpFile, prompt);
+    const args = [
+      "--print",
+      "--model", model,
+      "--dangerously-skip-permissions",
+      "--allowed-tools", tools.join(","),
+      "--max-budget-usd", String(budget),
+      "--output-format", "json",
+    ];
 
-    try {
-      const toolsArg = tools.map((t) => `"${t}"`).join(",");
-      const cmd = [
-        "CLAUDECODE=",
-        "claude",
-        "--print",
-        `--model ${model}`,
-        "--dangerously-skip-permissions",
-        `--allowedTools ${toolsArg}`,
-        `--max-budget-usd ${budget}`,
-        "--output-format json",
-        `< "${tmpFile}"`,
-      ].join(" ");
-
-      const output = execSync(cmd, {
+    const output = await new Promise<string>((resolve, reject) => {
+      const child = spawn("claude", args, {
         cwd: workingDir,
-        encoding: "utf-8",
-        maxBuffer: 10 * 1024 * 1024,
-        timeout: 600000, // 10 minutes
-        env: { ...process.env, CLAUDECODE: "" },
+        stdio: ["pipe", "pipe", "pipe"],
       });
 
-      let parsed: ClaudeJsonResponse;
-      try {
-        parsed = JSON.parse(output.trim());
-      } catch {
-        throw new Error(`Failed to parse claude output: ${output.slice(0, 200)}`);
-      }
+      let stdout = "";
+      let stderr = "";
 
-      return {
-        success: !parsed.is_error && parsed.subtype === "success",
-        output: parsed.result ?? "",
-        cost: parsed.total_cost_usd ?? 0,
-        turns: parsed.num_turns ?? 0,
-        stopReason: parsed.stop_reason ?? "unknown",
-      };
-    } finally {
-      try {
-        fs.unlinkSync(tmpFile);
-      } catch {
-        // Ignore cleanup errors
-      }
+      child.stdout.on("data", (data: Buffer) => {
+        stdout += data.toString();
+      });
+
+      child.stderr.on("data", (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      child.stdin.write(prompt);
+      child.stdin.end();
+
+      child.on("close", (code: number | null) => {
+        if (code !== 0) {
+          reject(new Error(`claude exited with code ${code}: ${stderr}`));
+        } else {
+          resolve(stdout);
+        }
+      });
+
+      child.on("error", (err: Error) => {
+        reject(err);
+      });
+    });
+
+    let parsed: ClaudeJsonResponse;
+    try {
+      parsed = JSON.parse(output.trim());
+    } catch {
+      throw new Error(`Failed to parse claude output: ${output.slice(0, 200)}`);
     }
+
+    return {
+      success: !parsed.is_error && parsed.subtype === "success",
+      output: parsed.result ?? "",
+      cost: parsed.total_cost_usd ?? 0,
+      turns: parsed.num_turns ?? 0,
+      stopReason: parsed.stop_reason ?? "unknown",
+    };
   }
 }
