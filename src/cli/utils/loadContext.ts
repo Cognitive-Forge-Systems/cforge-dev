@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { ProjectContext } from "../../domain/models/ProjectContext";
+import { resolveRepoFromGit } from "./resolveRepo";
 
 export function loadContext(): ProjectContext {
   const filePath = path.join(process.cwd(), "CFORGE_DEV.md");
@@ -11,8 +12,11 @@ export function loadContext(): ProjectContext {
 
   const content = fs.readFileSync(filePath, "utf-8");
 
-  const repoOwner = extractField(content, "Repo") ?.split("/")[0] ?? "unknown";
-  const repoName = extractField(content, "Repo")?.split("/")[1] ?? "unknown";
+  const repoField = extractField(content, "Repo");
+  const fromGit = (!repoField || !repoField.includes("/")) ? resolveRepoFromGit() : undefined;
+
+  const repoOwner = repoField?.split("/")[0] ?? fromGit?.owner ?? "unknown";
+  const repoName = repoField?.split("/")[1] ?? fromGit?.repo ?? "unknown";
   const stack = extractField(content, "Stack") ?? "TypeScript";
   const architecture = extractLine(content, "Architecture") ?? "Clean Architecture";
 
