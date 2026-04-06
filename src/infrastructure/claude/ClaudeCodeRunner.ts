@@ -2,7 +2,7 @@ import { execSync, spawn } from "child_process";
 import { CodeRunner, RunOptions, RunResult } from "../../domain/interfaces/CodeRunner";
 
 const DEFAULT_MODEL = "claude-sonnet-4-6";
-const DEFAULT_BUDGET = 1.0;
+const DEFAULT_BUDGET = 5;
 const DEFAULT_TOOLS = ["Bash", "Edit", "Read", "Write", "Glob", "Grep"];
 
 interface ClaudeJsonResponse {
@@ -18,7 +18,8 @@ interface ClaudeJsonResponse {
 export class ClaudeCodeRunner implements CodeRunner {
   async run(prompt: string, workingDir: string, options: RunOptions): Promise<RunResult> {
     const model = options.model ?? DEFAULT_MODEL;
-    const budget = options.maxBudgetUsd ?? DEFAULT_BUDGET;
+    const envBudget = process.env.CFORGE_MAX_BUDGET ? Number(process.env.CFORGE_MAX_BUDGET) : DEFAULT_BUDGET;
+    const budget = options.maxBudgetUsd ?? envBudget;
     const tools = options.allowedTools ?? DEFAULT_TOOLS;
 
     // Check if claude CLI exists

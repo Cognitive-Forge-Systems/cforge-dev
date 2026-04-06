@@ -50,6 +50,7 @@ npm install
 npm run build
 export GITHUB_TOKEN=your_token
 export OPENROUTER_API_KEY=your_key
+export CFORGE_MAX_BUDGET=5          # max USD per Claude Code session (default: 5)
 cforge-dev chat
 ```
 
