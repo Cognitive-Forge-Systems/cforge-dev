@@ -3,6 +3,7 @@ import { CForgePromptGenerator } from "../../infrastructure/cforge/CForgePromptG
 import { VerifyIssue } from "../../application/use-cases/VerifyIssue";
 import { loadContext } from "../utils/loadContext";
 import { validatePresence, validateNumericIssueNumber, USAGE_VERIFY } from "../validation";
+import { c, createSpinner } from "../utils/ui";
 
 export async function verifyCommand(issueNumberStr: string): Promise<void> {
   if (issueNumberStr === "--help") {
@@ -29,26 +30,30 @@ export async function verifyCommand(issueNumberStr: string): Promise<void> {
   const promptGen = new CForgePromptGenerator();
   const verifier = new VerifyIssue(gh, promptGen);
 
+  const spinner = createSpinner("Verifying issue…");
   const result = await verifier.execute({ issueNumber, context });
+  spinner.stop();
 
-  console.log(`\nIssue: #${result.issue.number} — ${result.issue.title}`);
-  console.log(`Ready: ${result.ready ? "YES" : "NO"}`);
+  const readyLabel = result.ready ? c.success("YES") : c.error("NO");
+
+  console.log(`\n${c.bold("Issue:")} #${result.issue.number} — ${result.issue.title}`);
+  console.log(`${c.bold("Ready:")} ${readyLabel}`);
 
   if (result.pr) {
-    console.log(`PR: #${result.pr.number} — ${result.pr.title}`);
+    console.log(`${c.bold("PR:")} #${result.pr.number} — ${result.pr.title}`);
   } else {
-    console.log("PR: none found");
+    console.log(`${c.bold("PR:")} ${c.dim("none found")}`);
   }
 
   if (result.blockers.length > 0) {
-    console.log("\nBlockers:");
-    result.blockers.forEach((b) => console.log(`  - ${b}`));
+    console.log(`\n${c.error("Blockers:")}`);
+    result.blockers.forEach((b) => console.log(`  ${c.error("-")} ${b}`));
   }
 
-  console.log("\nCritique:");
+  console.log(`\n${c.bold("Critique:")}`);
   console.log(result.critique);
 
-  console.log("\nNext steps:");
+  console.log(`\n${c.bold("Next steps:")}`);
   result.nextSteps.forEach((step, i) => {
     console.log(`  ${i + 1}. ${step}`);
   });

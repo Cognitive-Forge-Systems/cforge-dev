@@ -2,6 +2,7 @@ import { OctokitGitHubClient } from "../../infrastructure/github/OctokitGitHubCl
 import { CreateRelease } from "../../application/use-cases/CreateRelease";
 import { loadContext } from "../utils/loadContext";
 import { validatePresence, USAGE_RELEASE } from "../validation";
+import { c, createSpinner } from "../utils/ui";
 
 export async function releaseCommand(milestoneIdStr: string, version: string): Promise<void> {
   if (milestoneIdStr === "--help" || version === "--help") {
@@ -17,7 +18,7 @@ export async function releaseCommand(milestoneIdStr: string, version: string): P
 
   const milestoneId = parseInt(milestoneIdStr, 10);
   if (isNaN(milestoneId)) {
-    console.error("Milestone ID must be a valid integer");
+    console.error(c.error("Milestone ID must be a valid integer"));
     process.exit(1);
   }
 
@@ -25,14 +26,16 @@ export async function releaseCommand(milestoneIdStr: string, version: string): P
   const gh = new OctokitGitHubClient(context.repoOwner, context.repoName);
   const release = new CreateRelease(gh);
 
+  const spinner = createSpinner("Creating release…");
   const result = await release.execute({ milestoneId, version, context });
+  spinner.stop();
 
-  console.log(`\nRelease: ${result.tag}`);
-  console.log(`Version: ${result.version}`);
-  console.log(`Released at: ${result.releasedAt.toISOString()}\n`);
+  console.log(`\n${c.success("\u2713")} ${c.bold("Release:")} ${result.tag}`);
+  console.log(`${c.bold("Version:")} ${result.version}`);
+  console.log(`${c.bold("Released at:")} ${c.dim(result.releasedAt.toISOString())}\n`);
 
-  console.log("Changelog:");
+  console.log(c.bold("Changelog:"));
   console.log(result.changelog);
 
-  console.log(`\nhttps://github.com/${context.repoOwner}/${context.repoName}/releases/tag/${result.tag}`);
+  console.log(`\n${c.info(`https://github.com/${context.repoOwner}/${context.repoName}/releases/tag/${result.tag}`)}`);
 }
