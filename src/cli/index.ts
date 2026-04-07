@@ -7,12 +7,14 @@ import { verifyCommand } from "./commands/verify";
 import { releaseCommand } from "./commands/release";
 import { chatCommand } from "./commands/chat";
 import { auditCommand } from "./commands/audit";
+import { initCommand } from "./commands/init";
 import { getVersion } from "./utils/getVersion";
 import { printWelcome } from "./utils/ui";
 
 export const USAGE = `cforge-dev — AI-native SDLC orchestrator
 
 Usage:
+  cforge-dev init                         Scaffold and maintain project documentation
   cforge-dev plan <prd-file>              Plan a sprint from a PRD file
   cforge-dev implement <issue-number>     Generate Claude Code prompt for an issue
   cforge-dev implement <n> --auto         Autonomous: Claude Code implements + opens PR
@@ -38,6 +40,9 @@ export async function main(): Promise<void> {
   }
 
   switch (command) {
+    case "init":
+      await initCommand(args[0]);
+      break;
     case "plan":
       await planCommand(args[0]);
       break;
