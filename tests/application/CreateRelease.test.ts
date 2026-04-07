@@ -36,7 +36,9 @@ function mockGitHubClient(issues: Issue[]): GitHubClient {
     getPullRequest: jest.fn(),
     listOpenPullRequests: jest.fn(),
     closeIssue: jest.fn(),
-    createRelease: jest.fn().mockResolvedValue(undefined),
+    createRelease: jest.fn(),
+    branchExists: jest.fn().mockResolvedValue(false),
+    deleteBranch: jest.fn().mockResolvedValue(undefined),
   };
 }
 

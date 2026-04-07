@@ -4,10 +4,12 @@ jest.mock("child_process", () => ({
 
 import { AutoImplement } from "../../src/application/use-cases/AutoImplement";
 import { GitHubClient } from "../../src/domain/interfaces/GitHubClient";
+import { BranchConflictResolver } from "../../src/domain/interfaces/BranchConflictResolver";
 import { PromptGenerator } from "../../src/domain/interfaces/PromptGenerator";
 import { CodeRunner, RunResult } from "../../src/domain/interfaces/CodeRunner";
 import { IssueType, Issue } from "../../src/domain/models/Issue";
 import { ProjectContext } from "../../src/domain/models/ProjectContext";
+import { BranchConflictAction } from "../../src/domain/models/BranchConflictAction";
 
 const mockContext: ProjectContext = {
   repoOwner: "test-owner",
@@ -42,13 +44,15 @@ function makeRunResult(overrides: Partial<RunResult> = {}): RunResult {
   };
 }
 
-function mockGitHubClient(issue: Issue): GitHubClient {
+function mockGitHubClient(issue: Issue, branchAlreadyExists = false): GitHubClient {
   return {
     createMilestone: jest.fn(),
     createIssue: jest.fn(),
     getIssue: jest.fn().mockResolvedValue(issue),
     listIssues: jest.fn(),
     createBranch: jest.fn(),
+    branchExists: jest.fn().mockResolvedValue(branchAlreadyExists),
+    deleteBranch: jest.fn().mockResolvedValue(undefined),
     createPullRequest: jest.fn().mockResolvedValue({
       number: 100,
       title: "feat: add login",
@@ -79,6 +83,12 @@ function mockCodeRunner(result: RunResult): CodeRunner {
 
 function mockTestRunner(passes: boolean): (dir: string) => Promise<{ passed: boolean; output: string }> {
   return jest.fn().mockResolvedValue({ passed: passes, output: passes ? "All tests pass" : "FAIL: 2 tests failed\nExpected X got Y" });
+}
+
+function mockResolver(action: BranchConflictAction): BranchConflictResolver {
+  return {
+    resolve: jest.fn().mockResolvedValue(action),
+  };
 }
 
 describe("AutoImplement", () => {
@@ -257,5 +267,73 @@ describe("AutoImplement", () => {
     const result = await auto.execute({ issueNumber: 42, context: mockContext });
 
     expect(result.retried).toBe(false);
+  });
+
+  // Branch conflict scenarios
+
+  it("branch already exists, no resolver → throws with branch-exists error", async () => {
+    const issue = makeIssue();
+    const gh = mockGitHubClient(issue, true);
+    const prompt = mockPromptGenerator();
+    const runner = mockCodeRunner(makeRunResult());
+    const testRunner = mockTestRunner(true);
+    const auto = new AutoImplement(gh, prompt, runner, testRunner);
+
+    await expect(auto.execute({ issueNumber: 42, context: mockContext })).rejects.toThrow(
+      "already exists"
+    );
+    expect(runner.run).not.toHaveBeenCalled();
+    expect(gh.createBranch).not.toHaveBeenCalled();
+  });
+
+  it("branch already exists, user chooses continue → createBranch NOT called, pipeline proceeds", async () => {
+    const issue = makeIssue();
+    const gh = mockGitHubClient(issue, true);
+    const prompt = mockPromptGenerator();
+    const runner = mockCodeRunner(makeRunResult());
+    const testRunner = mockTestRunner(true);
+    const resolver = mockResolver("continue");
+    const auto = new AutoImplement(gh, prompt, runner, testRunner, resolver);
+
+    const result = await auto.execute({ issueNumber: 42, context: mockContext });
+
+    expect(result.success).toBe(true);
+    expect(gh.createBranch).not.toHaveBeenCalled();
+    expect(gh.deleteBranch).not.toHaveBeenCalled();
+    expect(resolver.resolve).toHaveBeenCalledWith("feat/add-login");
+  });
+
+  it("branch already exists, user chooses reset → deleteBranch then createBranch called", async () => {
+    const issue = makeIssue();
+    const gh = mockGitHubClient(issue, true);
+    const prompt = mockPromptGenerator();
+    const runner = mockCodeRunner(makeRunResult());
+    const testRunner = mockTestRunner(true);
+    const resolver = mockResolver("reset");
+    const auto = new AutoImplement(gh, prompt, runner, testRunner, resolver);
+
+    await auto.execute({ issueNumber: 42, context: mockContext });
+
+    expect(gh.deleteBranch).toHaveBeenCalledWith("feat/add-login");
+    expect(gh.createBranch).toHaveBeenCalledWith("feat/add-login", "main");
+  });
+
+  it("branch already exists, user chooses abort → success false, stopReason aborted, no branch changes", async () => {
+    const issue = makeIssue();
+    const gh = mockGitHubClient(issue, true);
+    const prompt = mockPromptGenerator();
+    const runner = mockCodeRunner(makeRunResult());
+    const testRunner = mockTestRunner(true);
+    const resolver = mockResolver("abort");
+    const auto = new AutoImplement(gh, prompt, runner, testRunner, resolver);
+
+    const result = await auto.execute({ issueNumber: 42, context: mockContext });
+
+    expect(result.success).toBe(false);
+    expect(result.stopReason).toBe("aborted");
+    expect(result.error).toContain("Aborted");
+    expect(gh.createBranch).not.toHaveBeenCalled();
+    expect(gh.deleteBranch).not.toHaveBeenCalled();
+    expect(runner.run).not.toHaveBeenCalled();
   });
 });

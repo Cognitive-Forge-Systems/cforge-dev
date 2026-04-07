@@ -7,6 +7,7 @@ import { AutoImplement } from "../../application/use-cases/AutoImplement";
 import { loadContext } from "../utils/loadContext";
 import { validatePresence, validateNumericIssueNumber, USAGE_IMPLEMENT } from "../validation";
 import { c, createSpinner } from "../utils/ui";
+import { StdinBranchConflictResolver } from "../utils/StdinBranchConflictResolver";
 
 export async function implementCommand(issueNumberStr: string, flags: string[] = []): Promise<void> {
   if (issueNumberStr === "--help" || flags.includes("--help")) {
@@ -42,7 +43,8 @@ async function runManualImplement(issueNumber: number): Promise<void> {
   const context = loadContext();
   const gh = new OctokitGitHubClient(context.repoOwner, context.repoName);
   const promptGen = new CForgePromptGenerator();
-  const impl = new ImplementIssue(gh, promptGen);
+  const resolver = new StdinBranchConflictResolver();
+  const impl = new ImplementIssue(gh, promptGen, resolver);
 
   const spinner = createSpinner("Fetching issue…");
   const result = await impl.execute({ issueNumber, context });
@@ -88,7 +90,8 @@ async function runAutoImplement(issueNumber: number, maxBudgetUsd?: number): Pro
     }
   };
 
-  const auto = new AutoImplement(gh, promptGen, codeRunner, testRunner);
+  const resolver = new StdinBranchConflictResolver();
+  const auto = new AutoImplement(gh, promptGen, codeRunner, testRunner, resolver);
 
   console.log("");
   console.log(c.bold("══════════════════════════════════════"));
@@ -120,6 +123,8 @@ async function runAutoImplement(issueNumber: number, maxBudgetUsd?: number): Pro
     console.log(c.success("DONE — Review PR and merge when ready"));
     console.log(c.dim(`cforge-dev verify ${issueNumber}`));
     console.log(c.bold("══════════════════════════════════════"));
+  } else if (result.stopReason === "aborted") {
+    console.log(`  ${c.warning("\u2212")} ${result.error}`);
   } else {
     console.log(`  ${c.error("\u2717")} ${result.error}`);
     if (result.retried) {

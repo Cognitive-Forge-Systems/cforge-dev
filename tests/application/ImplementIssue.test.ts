@@ -1,8 +1,10 @@
 import { ImplementIssue } from "../../src/application/use-cases/ImplementIssue";
 import { GitHubClient } from "../../src/domain/interfaces/GitHubClient";
+import { BranchConflictResolver } from "../../src/domain/interfaces/BranchConflictResolver";
 import { PromptGenerator } from "../../src/domain/interfaces/PromptGenerator";
 import { IssueType, Issue } from "../../src/domain/models/Issue";
 import { ProjectContext } from "../../src/domain/models/ProjectContext";
+import { BranchConflictAction } from "../../src/domain/models/BranchConflictAction";
 
 const mockContext: ProjectContext = {
   repoOwner: "test-owner",
@@ -26,13 +28,15 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
   };
 }
 
-function mockGitHubClient(issue: Issue): GitHubClient {
+function mockGitHubClient(issue: Issue, branchAlreadyExists = false): GitHubClient {
   return {
     createMilestone: jest.fn(),
     createIssue: jest.fn(),
     getIssue: jest.fn().mockResolvedValue(issue),
     listIssues: jest.fn(),
     createBranch: jest.fn().mockResolvedValue(undefined),
+    branchExists: jest.fn().mockResolvedValue(branchAlreadyExists),
+    deleteBranch: jest.fn().mockResolvedValue(undefined),
     createPullRequest: jest.fn(),
     getPullRequest: jest.fn(),
     listOpenPullRequests: jest.fn(),
@@ -45,6 +49,12 @@ function mockPromptGenerator(): PromptGenerator {
   return {
     generateImplementationPrompt: jest.fn().mockResolvedValue("Generated Claude Code prompt for issue #42"),
     generatePlanningPrompt: jest.fn(),
+  };
+}
+
+function mockResolver(action: BranchConflictAction): BranchConflictResolver {
+  return {
+    resolve: jest.fn().mockResolvedValue(action),
   };
 }
 
@@ -170,5 +180,63 @@ describe("ImplementIssue", () => {
       expect.any(String),
       "main"
     );
+  });
+
+  // Branch conflict scenarios
+
+  it("branch already exists, no resolver → throws with branch-exists error", async () => {
+    const issue = makeIssue();
+    const gh = mockGitHubClient(issue, true);
+    const prompt = mockPromptGenerator();
+    const impl = new ImplementIssue(gh, prompt);
+
+    await expect(impl.execute({ issueNumber: 42, context: mockContext })).rejects.toThrow(
+      "already exists"
+    );
+    expect(gh.createBranch).not.toHaveBeenCalled();
+    expect(gh.deleteBranch).not.toHaveBeenCalled();
+  });
+
+  it("branch already exists, user chooses continue → createBranch NOT called, returns result", async () => {
+    const issue = makeIssue();
+    const gh = mockGitHubClient(issue, true);
+    const prompt = mockPromptGenerator();
+    const resolver = mockResolver("continue");
+    const impl = new ImplementIssue(gh, prompt, resolver);
+
+    const result = await impl.execute({ issueNumber: 42, context: mockContext });
+
+    expect(result.branch).toBe("feat/add-user-authentication");
+    expect(gh.createBranch).not.toHaveBeenCalled();
+    expect(gh.deleteBranch).not.toHaveBeenCalled();
+    expect(resolver.resolve).toHaveBeenCalledWith("feat/add-user-authentication");
+  });
+
+  it("branch already exists, user chooses reset → deleteBranch then createBranch called", async () => {
+    const issue = makeIssue();
+    const gh = mockGitHubClient(issue, true);
+    const prompt = mockPromptGenerator();
+    const resolver = mockResolver("reset");
+    const impl = new ImplementIssue(gh, prompt, resolver);
+
+    const result = await impl.execute({ issueNumber: 42, context: mockContext });
+
+    expect(result.branch).toBe("feat/add-user-authentication");
+    expect(gh.deleteBranch).toHaveBeenCalledWith("feat/add-user-authentication");
+    expect(gh.createBranch).toHaveBeenCalledWith("feat/add-user-authentication", "main");
+  });
+
+  it("branch already exists, user chooses abort → throws abort error, no branch changes", async () => {
+    const issue = makeIssue();
+    const gh = mockGitHubClient(issue, true);
+    const prompt = mockPromptGenerator();
+    const resolver = mockResolver("abort");
+    const impl = new ImplementIssue(gh, prompt, resolver);
+
+    await expect(impl.execute({ issueNumber: 42, context: mockContext })).rejects.toThrow(
+      "Aborted"
+    );
+    expect(gh.createBranch).not.toHaveBeenCalled();
+    expect(gh.deleteBranch).not.toHaveBeenCalled();
   });
 });

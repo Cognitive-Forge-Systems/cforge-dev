@@ -18,6 +18,7 @@ const mockOctokit = {
   git: {
     getRef: jest.fn(),
     createRef: jest.fn(),
+    deleteRef: jest.fn(),
   },
   pulls: {
     create: jest.fn(),
@@ -252,6 +253,49 @@ describe("OctokitGitHubClient", () => {
       repo: "test-repo",
       issue_number: 5,
       state: "closed",
+    });
+  });
+
+  it("branchExists returns true when branch ref exists", async () => {
+    mockOctokit.git.getRef.mockResolvedValueOnce({
+      data: { object: { sha: "abc123" } },
+    });
+
+    const result = await client.branchExists("feat/some-feature");
+
+    expect(result).toBe(true);
+    expect(mockOctokit.git.getRef).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      ref: "heads/feat/some-feature",
+    });
+  });
+
+  it("branchExists returns false when branch returns 404", async () => {
+    const err = Object.assign(new Error("Not Found"), { status: 404 });
+    mockOctokit.git.getRef.mockRejectedValueOnce(err);
+
+    const result = await client.branchExists("feat/missing-branch");
+
+    expect(result).toBe(false);
+  });
+
+  it("branchExists rethrows non-404 errors", async () => {
+    const err = Object.assign(new Error("Forbidden"), { status: 403 });
+    mockOctokit.git.getRef.mockRejectedValueOnce(err);
+
+    await expect(client.branchExists("feat/some-branch")).rejects.toThrow("Forbidden");
+  });
+
+  it("deleteBranch calls deleteRef with correct params", async () => {
+    mockOctokit.git.deleteRef.mockResolvedValueOnce({});
+
+    await client.deleteBranch("feat/old-branch");
+
+    expect(mockOctokit.git.deleteRef).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      ref: "heads/feat/old-branch",
     });
   });
 
