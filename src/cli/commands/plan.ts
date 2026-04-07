@@ -5,6 +5,7 @@ import { CForgePromptGenerator } from "../../infrastructure/cforge/CForgePromptG
 import { PlanSprint } from "../../application/use-cases/PlanSprint";
 import { loadContext } from "../utils/loadContext";
 import { validatePresence, USAGE_PLAN } from "../validation";
+import { c, createSpinner } from "../utils/ui";
 
 function prompt(question: string): Promise<string> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -29,7 +30,7 @@ export async function planCommand(prdFile: string): Promise<void> {
   }
 
   if (!fs.existsSync(prdFile)) {
-    console.error(`File not found: ${prdFile}`);
+    console.error(c.error(`File not found: ${prdFile}`));
     process.exit(1);
   }
 
@@ -43,7 +44,7 @@ export async function planCommand(prdFile: string): Promise<void> {
   const promptGen = new CForgePromptGenerator();
   const planner = new PlanSprint(gh, promptGen, context);
 
-  console.log("\nPlanning sprint...\n");
+  const spinner = createSpinner("Planning sprint…");
 
   const sprint = await planner.execute({
     prdContent,
@@ -51,9 +52,11 @@ export async function planCommand(prdFile: string): Promise<void> {
     milestoneDescription,
   });
 
-  console.log(`Milestone: ${sprint.milestone.title} (id: ${sprint.milestone.id})`);
-  console.log(`\nCreated ${sprint.issues.length} issues:\n`);
+  spinner.stop();
+
+  console.log(`\n${c.success("\u2713")} ${c.bold("Milestone:")} ${sprint.milestone.title} ${c.dim(`(id: ${sprint.milestone.id})`)}`);
+  console.log(`\n${c.bold(`Created ${sprint.issues.length} issues:`)}\n`);
   for (const issue of sprint.issues) {
-    console.log(`  #${issue.number} [${issue.type}] ${issue.title}`);
+    console.log(`  #${issue.number} ${c.issueType(issue.type)} ${issue.title}`);
   }
 }

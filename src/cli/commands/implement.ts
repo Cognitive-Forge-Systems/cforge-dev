@@ -6,6 +6,7 @@ import { ImplementIssue } from "../../application/use-cases/ImplementIssue";
 import { AutoImplement } from "../../application/use-cases/AutoImplement";
 import { loadContext } from "../utils/loadContext";
 import { validatePresence, validateNumericIssueNumber, USAGE_IMPLEMENT } from "../validation";
+import { c, createSpinner } from "../utils/ui";
 
 export async function implementCommand(issueNumberStr: string, flags: string[] = []): Promise<void> {
   if (issueNumberStr === "--help" || flags.includes("--help")) {
@@ -43,16 +44,18 @@ async function runManualImplement(issueNumber: number): Promise<void> {
   const promptGen = new CForgePromptGenerator();
   const impl = new ImplementIssue(gh, promptGen);
 
+  const spinner = createSpinner("Fetching issue…");
   const result = await impl.execute({ issueNumber, context });
+  spinner.stop();
 
-  console.log(`\nIssue: #${result.issue.number} — ${result.issue.title}`);
-  console.log(`Branch: ${result.branch}\n`);
+  console.log(`\n${c.bold("Issue:")} #${result.issue.number} — ${result.issue.title}`);
+  console.log(`${c.bold("Branch:")} ${result.branch}\n`);
 
-  console.log("══ CLAUDE CODE PROMPT ══");
+  console.log(c.info("══ CLAUDE CODE PROMPT ══"));
   console.log(result.prompt);
-  console.log("══ END PROMPT ══\n");
+  console.log(c.info("══ END PROMPT ══\n"));
 
-  console.log("Next steps:");
+  console.log(c.bold("Next steps:"));
   result.nextSteps.forEach((step, i) => {
     console.log(`  ${i + 1}. ${step}`);
   });
@@ -88,9 +91,11 @@ async function runAutoImplement(issueNumber: number, maxBudgetUsd?: number): Pro
   const auto = new AutoImplement(gh, promptGen, codeRunner, testRunner);
 
   console.log("");
-  console.log("══════════════════════════════════════");
-  console.log(`AUTO-IMPLEMENT — Issue #${issueNumber}`);
-  console.log("══════════════════════════════════════");
+  console.log(c.bold("══════════════════════════════════════"));
+  console.log(c.bold(`AUTO-IMPLEMENT — Issue #${issueNumber}`));
+  console.log(c.bold("══════════════════════════════════════"));
+
+  const spinner = createSpinner("Running Claude Code…");
 
   const result = await auto.execute({
     issueNumber,
@@ -98,27 +103,30 @@ async function runAutoImplement(issueNumber: number, maxBudgetUsd?: number): Pro
     maxBudgetUsd,
   });
 
+  spinner.stop();
+
   if (result.success) {
-    console.log(`  \u2713 Claude session complete ($${result.cost.toFixed(4)}, ${result.turns} turns)`);
-    console.log(`  \u2713 Tests passed`);
+    const metrics = c.metric(`$${result.cost.toFixed(4)}, ${result.turns} turns`);
+    console.log(`  ${c.success("\u2713")} Claude session complete (${metrics})`);
+    console.log(`  ${c.success("\u2713")} Tests passed`);
     if (result.prUrl) {
-      console.log(`  \u2713 PR opened: ${result.prUrl}`);
+      console.log(`  ${c.success("\u2713")} PR opened: ${result.prUrl}`);
     }
     if (result.retried) {
-      console.log("  (retry was needed)");
+      console.log(c.dim("  (retry was needed)"));
     }
     console.log("");
-    console.log("══════════════════════════════════════");
-    console.log("DONE — Review PR and merge when ready");
-    console.log(`cforge-dev verify ${issueNumber}`);
-    console.log("══════════════════════════════════════");
+    console.log(c.bold("══════════════════════════════════════"));
+    console.log(c.success("DONE — Review PR and merge when ready"));
+    console.log(c.dim(`cforge-dev verify ${issueNumber}`));
+    console.log(c.bold("══════════════════════════════════════"));
   } else {
-    console.log(`  \u2717 ${result.error}`);
+    console.log(`  ${c.error("\u2717")} ${result.error}`);
     if (result.retried) {
-      console.log("  \u2717 Tests failed after retry");
+      console.log(`  ${c.error("\u2717")} Tests failed after retry`);
     }
     if (result.manualStepsRequired.length > 0) {
-      console.log("\n  Manual steps required:");
+      console.log(`\n  ${c.warning("Manual steps required:")}`);
       result.manualStepsRequired.forEach((step, i) => {
         console.log(`    ${i + 1}. ${step}`);
       });

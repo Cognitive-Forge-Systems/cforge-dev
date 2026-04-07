@@ -5,6 +5,7 @@ import { ChatSession } from "../../application/use-cases/ChatSession";
 import { RepoStateLoader } from "../../application/use-cases/RepoStateLoader";
 import { ImplementIssue } from "../../application/use-cases/ImplementIssue";
 import { loadContext } from "../utils/loadContext";
+import { c, createSpinner } from "../utils/ui";
 
 const HELP = `
 Commands:
@@ -24,21 +25,23 @@ export async function chatCommand(): Promise<void> {
   const promptGen = new CForgePromptGenerator();
   const loader = new RepoStateLoader(gh);
 
-  console.log("Loading repo state...");
+  const spinner = createSpinner("Loading repo state…");
   const repoState = await loader.execute();
+  spinner.stop();
+
   const session = new ChatSession(context, repoState);
 
   console.log("");
   console.log("╔════════════════════════════════════════╗");
-  console.log("║     cforge-dev — Planning Session      ║");
+  console.log(`║  ${c.bold("cforge-dev")} ${c.dim("— Planning Session")}      ║`);
   console.log("╚════════════════════════════════════════╝");
-  console.log(`  Repo:     ${context.repoOwner}/${context.repoName}`);
-  console.log(`  Model:    ${session.model}`);
+  console.log(`  ${c.dim("Repo:")}     ${context.repoOwner}/${context.repoName}`);
+  console.log(`  ${c.dim("Model:")}    ${session.model}`);
   console.log("");
   console.log(session.getRepoSummary());
   console.log("");
-  console.log("  Type /help for commands, /exit to quit.");
-  console.log("────────────────────────────────────────");
+  console.log(c.dim("  Type /help for commands, /exit to quit."));
+  console.log(c.dim("────────────────────────────────────────"));
 
   const isTTY = process.stdin.isTTY === true;
   let lineQueue: string[] | null = null;
@@ -64,14 +67,14 @@ export async function chatCommand(): Promise<void> {
     if (lineQueue) {
       const next = lineQueue.shift();
       if (next !== undefined) {
-        console.log(`\nyou → ${next}`);
+        console.log(`\n${c.dim("you →")} ${next}`);
         return Promise.resolve(next);
       }
       return Promise.resolve(null);
     }
     return new Promise((resolve) => {
       if (closed) { resolve(null); return; }
-      rl.question("\nyou → ", (answer) => resolve(answer.trim()));
+      rl.question(`\n${c.dim("you →")} `, (answer) => resolve(answer.trim()));
     });
   };
 
@@ -96,10 +99,10 @@ export async function chatCommand(): Promise<void> {
       session.updateRepoState(fresh);
       console.log("");
       if (fresh.openIssues.length === 0) {
-        console.log("  No open issues.");
+        console.log(c.dim("  No open issues."));
       } else {
         for (const issue of fresh.openIssues) {
-          console.log(`  #${issue.number}  [${issue.type}]  ${issue.title}`);
+          console.log(`  #${issue.number}  ${c.issueType(issue.type)}  ${issue.title}`);
         }
       }
       continue;
@@ -110,7 +113,7 @@ export async function chatCommand(): Promise<void> {
       session.updateRepoState(fresh);
       console.log("");
       if (fresh.openPullRequests.length === 0) {
-        console.log("  No open PRs.");
+        console.log(c.dim("  No open PRs."));
       } else {
         for (const pr of fresh.openPullRequests) {
           console.log(`  #${pr.number}  ${pr.title} (${pr.branch})`);
@@ -126,10 +129,11 @@ export async function chatCommand(): Promise<void> {
     }
 
     if (input === "/refresh") {
-      console.log("Refreshing repo state...");
+      const refreshSpinner = createSpinner("Refreshing repo state…");
       const fresh = await loader.execute();
       session.updateRepoState(fresh);
-      console.log("Done.\n");
+      refreshSpinner.stop();
+      console.log(c.success("Done.\n"));
       console.log(session.getRepoSummary());
       continue;
     }
@@ -138,7 +142,7 @@ export async function chatCommand(): Promise<void> {
       const newModel = input.slice(7).trim();
       if (newModel) {
         session.model = newModel;
-        console.log(`  Model switched to: ${newModel}`);
+        console.log(`  ${c.success("Model switched to:")} ${newModel}`);
       }
       continue;
     }
@@ -146,24 +150,26 @@ export async function chatCommand(): Promise<void> {
     if (input.startsWith("/implement ")) {
       const num = parseInt(input.slice(11).trim(), 10);
       if (isNaN(num)) {
-        console.log("  Usage: /implement <issue-number>");
+        console.log(c.warning("  Usage: /implement <issue-number>"));
         continue;
       }
       try {
         const impl = new ImplementIssue(gh, promptGen);
+        const implSpinner = createSpinner("Fetching issue…");
         const result = await impl.execute({ issueNumber: num, context });
-        console.log(`\n  Issue: #${result.issue.number} — ${result.issue.title}`);
-        console.log(`  Branch: ${result.branch}\n`);
-        console.log("══ CLAUDE CODE PROMPT ══");
+        implSpinner.stop();
+        console.log(`\n  ${c.bold("Issue:")} #${result.issue.number} — ${result.issue.title}`);
+        console.log(`  ${c.bold("Branch:")} ${result.branch}\n`);
+        console.log(c.info("══ CLAUDE CODE PROMPT ══"));
         console.log(result.prompt);
-        console.log("══ END PROMPT ══\n");
-        console.log("  Next steps:");
+        console.log(c.info("══ END PROMPT ══\n"));
+        console.log(`  ${c.bold("Next steps:")}`);
         result.nextSteps.forEach((step, i) => {
           console.log(`    ${i + 1}. ${step}`);
         });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.log(`  Error: ${msg}`);
+        console.log(`  ${c.error("Error:")} ${msg}`);
       }
       continue;
     }
@@ -175,10 +181,10 @@ export async function chatCommand(): Promise<void> {
     try {
       const response = await callLLM(messages, session.model);
       session.addMessage("assistant", response);
-      console.log(`\ncforge-dev → ${response}`);
+      console.log(`\n${c.info("cforge-dev →")} ${response}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.log(`  Error: ${msg}`);
+      console.log(`  ${c.error("Error:")} ${msg}`);
       // Remove the user message if LLM call failed
       session.history.pop();
     }

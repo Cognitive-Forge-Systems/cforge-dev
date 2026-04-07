@@ -8,6 +8,7 @@ import { releaseCommand } from "./commands/release";
 import { chatCommand } from "./commands/chat";
 import { auditCommand } from "./commands/audit";
 import { getVersion } from "./utils/getVersion";
+import { printWelcome } from "./utils/ui";
 
 export const USAGE = `cforge-dev — AI-native SDLC orchestrator
 
@@ -25,12 +26,8 @@ Usage:
 export async function main(): Promise<void> {
   const [command, ...args] = process.argv.slice(2);
 
-  if (!command || command === "--help") {
-    console.log(USAGE);
-    process.exit(0);
-  }
-
-  if (command === "--help" || command === "-h") {
+  if (!command || command === "--help" || command === "-h") {
+    printWelcome(getVersion(), "cforge-dev");
     console.log(USAGE);
     process.exit(0);
   }

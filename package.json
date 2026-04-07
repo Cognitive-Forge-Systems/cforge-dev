@@ -33,6 +33,9 @@
   },
   "dependencies": {
     "@octokit/rest": "^21.1.1",
-    "dotenv": "^17.3.1"
+    "boxen": "^5.1.2",
+    "chalk": "^4.1.2",
+    "dotenv": "^17.3.1",
+    "ora": "^5.4.1"
   }
 }

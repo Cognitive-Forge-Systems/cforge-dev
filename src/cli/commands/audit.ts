@@ -3,6 +3,7 @@ import { ContractLoader } from "../../infrastructure/filesystem/ContractLoader";
 import { CForgePromptGenerator } from "../../infrastructure/cforge/CForgePromptGenerator";
 import { GovernanceAuditor } from "../../application/use-cases/GovernanceAuditor";
 import { USAGE_AUDIT } from "../validation";
+import { c } from "../utils/ui";
 
 export async function auditCommand(flags: string[] = []): Promise<void> {
   if (flags.includes("--help")) {
@@ -17,7 +18,7 @@ export async function auditCommand(flags: string[] = []): Promise<void> {
   const contracts = loader.loadAll();
 
   if (contracts.length === 0) {
-    console.error("No governance contracts found in contracts/ directory.");
+    console.error(c.error("No governance contracts found in contracts/ directory."));
     process.exit(1);
   }
 
@@ -36,9 +37,9 @@ export async function auditCommand(flags: string[] = []): Promise<void> {
   const result = await auditor.execute({ workingDir, contracts });
 
   console.log("");
-  console.log("══════════════════════════════════════");
-  console.log("GOVERNANCE AUDIT — cforge-dev");
-  console.log("══════════════════════════════════════");
+  console.log(c.bold("══════════════════════════════════════"));
+  console.log(c.bold("GOVERNANCE AUDIT — cforge-dev"));
+  console.log(c.bold("══════════════════════════════════════"));
 
   // Group results by contract
   const byContract = new Map<string, typeof result.results>();
@@ -50,23 +51,32 @@ export async function auditCommand(flags: string[] = []): Promise<void> {
 
   for (const contract of contracts) {
     const results = byContract.get(contract.id) ?? [];
-    console.log(`\n  CONTRACT: ${contract.title}`);
-    console.log("  ──────────────────────────────");
+    console.log(`\n  ${c.info("CONTRACT:")} ${contract.title}`);
+    console.log(c.dim("  ──────────────────────────────"));
     for (const r of results) {
-      const icon = r.passed ? "\u2705" : r.rule.severity === "error" ? "\u274C" : "\u26A0\uFE0F ";
+      const icon = r.passed
+        ? c.success("\u2705")
+        : r.rule.severity === "error"
+          ? c.error("\u274C")
+          : c.warning("\u26A0\uFE0F ");
       const pad = r.rule.id.padEnd(24);
-      console.log(`  ${icon} ${pad} ${r.message}`);
+      const message = r.passed ? r.message : r.rule.severity === "error" ? c.error(r.message) : c.warning(r.message);
+      console.log(`  ${icon} ${pad} ${message}`);
     }
   }
 
+  const passedStr  = c.success(`${result.passed} passed`);
+  const warningStr = result.warnings > 0 ? c.warning(`${result.warnings} warning(s)`) : `${result.warnings} warning(s)`;
+  const errorStr   = result.errors > 0   ? c.error(`${result.errors} error(s)`)       : `${result.errors} error(s)`;
+
   console.log("");
-  console.log("══════════════════════════════════════");
-  console.log(`  RESULT: ${result.passed} passed  ${result.warnings} warning(s)  ${result.errors} error(s)`);
-  console.log("══════════════════════════════════════");
+  console.log(c.bold("══════════════════════════════════════"));
+  console.log(`  RESULT: ${passedStr}  ${warningStr}  ${errorStr}`);
+  console.log(c.bold("══════════════════════════════════════"));
 
   if (result.fixPlan) {
-    console.log("\n  FIX PLAN");
-    console.log("  ─────────");
+    console.log(`\n  ${c.warning("FIX PLAN")}`);
+    console.log(c.dim("  ─────────"));
     console.log(`  ${result.fixPlan.split("\n").join("\n  ")}`);
   }
 
