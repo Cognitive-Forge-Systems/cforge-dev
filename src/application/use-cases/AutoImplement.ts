@@ -2,6 +2,7 @@ import { execSync } from "child_process";
 import { GitHubClient } from "../../domain/interfaces/GitHubClient";
 import { PromptGenerator } from "../../domain/interfaces/PromptGenerator";
 import { CodeRunner } from "../../domain/interfaces/CodeRunner";
+import { BranchConflictResolver } from "../../domain/interfaces/BranchConflictResolver";
 import { Issue, IssueType } from "../../domain/models/Issue";
 import { ProjectContext } from "../../domain/models/ProjectContext";
 import { AutoImplementResult } from "../../domain/models/AutoImplementResult";
@@ -28,18 +29,21 @@ export class AutoImplement {
   private readonly codeRunner: CodeRunner;
   private readonly testRunner: (dir: string) => Promise<{ passed: boolean; output: string }>;
   private readonly doctrine: SDLCDoctrine;
+  private readonly branchConflictResolver?: BranchConflictResolver;
 
   constructor(
     github: GitHubClient,
     promptGen: PromptGenerator,
     codeRunner: CodeRunner,
     testRunner: (dir: string) => Promise<{ passed: boolean; output: string }>,
+    branchConflictResolver?: BranchConflictResolver,
   ) {
     this.github = github;
     this.promptGen = promptGen;
     this.codeRunner = codeRunner;
     this.testRunner = testRunner;
     this.doctrine = new SDLCDoctrine();
+    this.branchConflictResolver = branchConflictResolver;
   }
 
   async execute(input: AutoImplementInput): Promise<AutoImplementResult> {
@@ -47,10 +51,41 @@ export class AutoImplement {
     const issue = await this.github.getIssue(input.issueNumber);
     this.doctrine.validateIssueForImplementation(issue);
 
-    // Step 2: Generate branch name, create branch
+    // Step 2: Generate branch name, handle existing branch or create new
     const branch = this.buildBranchName(issue);
     this.doctrine.validateBranchName(branch, issue);
-    await this.github.createBranch(branch, "main");
+
+    const exists = await this.github.branchExists(branch);
+    if (exists) {
+      if (!this.branchConflictResolver) {
+        throw new Error(
+          `Branch '${branch}' already exists on remote. Delete it manually or retry with a conflict resolver.`
+        );
+      }
+      const action = await this.branchConflictResolver.resolve(branch);
+      if (action === "abort") {
+        return {
+          issue,
+          branch,
+          success: false,
+          testsPassed: false,
+          cost: 0,
+          turns: 0,
+          claudeOutput: "",
+          stopReason: "aborted",
+          retried: false,
+          error: "Aborted by user: branch already exists, no changes made.",
+          manualStepsRequired: [],
+        };
+      }
+      if (action === "reset") {
+        await this.github.deleteBranch(branch);
+        await this.github.createBranch(branch, "main");
+      }
+      // "continue": use existing branch as-is
+    } else {
+      await this.github.createBranch(branch, "main");
+    }
 
     // Step 3: Generate implementation prompt
     const basePrompt = await this.promptGen.generateImplementationPrompt(issue, input.context);

@@ -94,6 +94,30 @@ export class OctokitGitHubClient implements GitHubClient {
     });
   }
 
+  async branchExists(name: string): Promise<boolean> {
+    try {
+      await this.octokit.git.getRef({
+        owner: this.owner,
+        repo: this.repo,
+        ref: `heads/${name}`,
+      });
+      return true;
+    } catch (err: unknown) {
+      if ((err as { status?: number }).status === 404) {
+        return false;
+      }
+      throw err;
+    }
+  }
+
+  async deleteBranch(name: string): Promise<void> {
+    await this.octokit.git.deleteRef({
+      owner: this.owner,
+      repo: this.repo,
+      ref: `heads/${name}`,
+    });
+  }
+
   async createPullRequest(title: string, body: string, branch: string, base: string): Promise<PullRequest> {
     const { data } = await this.octokit.pulls.create({
       owner: this.owner,

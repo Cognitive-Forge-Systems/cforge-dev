@@ -8,6 +8,8 @@ export interface GitHubClient {
   getIssue(number: number): Promise<Issue>;
   listIssues(milestoneId?: number): Promise<Issue[]>;
   createBranch(name: string, fromBranch: string): Promise<void>;
+  branchExists(name: string): Promise<boolean>;
+  deleteBranch(name: string): Promise<void>;
   createPullRequest(title: string, body: string, branch: string, base: string): Promise<PullRequest>;
   getPullRequest(number: number): Promise<PullRequest>;
   listOpenPullRequests(): Promise<PullRequest[]>;
